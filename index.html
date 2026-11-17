@@ -1,0 +1,1342 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>PONPOKO - 레트로 아케이드 너구리 게임</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Noto+Sans+KR:wght@500;700&display=swap');
+
+    * {
+      box-sizing: border-box;
+      user-select: none;
+      -webkit-user-select: none;
+      touch-action: manipulation;
+    }
+
+    body {
+      margin: 0;
+      padding: 0;
+      background: #090b10;
+      color: #f8fafc;
+      font-family: 'Noto Sans KR', sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    .arcade-cabinet {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      width: 100%;
+      max-width: 720px;
+      padding: 10px 12px 16px;
+      gap: 10px;
+    }
+
+    .top-bar {
+      width: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 4px 8px;
+      background: #121622;
+      border: 2px solid #22d3ee;
+      border-radius: 8px;
+      box-shadow: 0 0 12px rgba(34, 211, 238, 0.2);
+    }
+
+    .brand-title {
+      font-family: 'Press Start 2P', monospace;
+      font-size: 13px;
+      color: #fde047;
+      text-shadow: 2px 2px 0 #dc2626;
+      letter-spacing: 1px;
+    }
+
+    .top-controls {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .btn-ui {
+      background: #1e293b;
+      color: #e2e8f0;
+      border: 1px solid #475569;
+      border-radius: 6px;
+      padding: 6px 10px;
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: background 0.15s, transform 0.1s;
+    }
+
+    .btn-ui:hover {
+      background: #334155;
+    }
+
+    .btn-ui:active {
+      transform: scale(0.96);
+    }
+
+    .btn-ui.active {
+      background: #0891b2;
+      border-color: #22d3ee;
+      color: #ffffff;
+    }
+
+    .screen-bezel {
+      position: relative;
+      width: 100%;
+      background: #000000;
+      border: 4px solid #1e293b;
+      border-radius: 10px;
+      box-shadow: 0 0 28px rgba(0, 229, 255, 0.18), inset 0 0 18px rgba(0, 0, 0, 0.9);
+      overflow: hidden;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+
+    canvas {
+      display: block;
+      width: 100%;
+      height: auto;
+      aspect-ratio: 480 / 400;
+      image-rendering: pixelated;
+      image-rendering: crisp-edges;
+    }
+
+    /* Overlay for Start / Game Over / Stage Clear */
+    .overlay {
+      position: absolute;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.78);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 20px;
+      z-index: 10;
+    }
+
+    .overlay.hidden {
+      display: none;
+    }
+
+    .overlay-logo {
+      font-family: 'Press Start 2P', monospace;
+      font-size: clamp(24px, 5vw, 38px);
+      color: #fde047;
+      text-shadow: 3px 3px 0 #ef4444, -2px -2px 0 #0284c7;
+      margin-bottom: 10px;
+      letter-spacing: 2px;
+    }
+
+    .overlay-sub {
+      font-family: 'Press Start 2P', monospace;
+      font-size: clamp(11px, 2.5vw, 15px);
+      color: #22d3ee;
+      margin-bottom: 18px;
+    }
+
+    .overlay-desc {
+      font-size: 13px;
+      line-height: 1.65;
+      color: #cbd5e1;
+      max-width: 400px;
+      margin-bottom: 20px;
+    }
+
+    .btn-start {
+      font-family: 'Press Start 2P', monospace;
+      font-size: 14px;
+      padding: 13px 24px;
+      background: #ef4444;
+      color: #ffffff;
+      border: 3px solid #fde047;
+      border-radius: 8px;
+      cursor: pointer;
+      box-shadow: 0 4px 0 #991b1b;
+      transition: transform 0.1s;
+    }
+
+    .btn-start:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #991b1b;
+    }
+
+    /* On-screen Touch Controls */
+    .touch-controls {
+      width: 100%;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 6px 12px;
+      gap: 12px;
+    }
+
+    .dpad {
+      display: grid;
+      grid-template-columns: repeat(3, 52px);
+      grid-template-rows: repeat(3, 46px);
+      gap: 4px;
+    }
+
+    .pad-btn {
+      background: #1e293b;
+      border: 2px solid #334155;
+      border-radius: 8px;
+      color: #f8fafc;
+      font-size: 18px;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      box-shadow: 0 3px 0 #0f172a;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    .pad-btn:active, .pad-btn.pressed {
+      background: #0891b2;
+      border-color: #22d3ee;
+      transform: translateY(2px);
+      box-shadow: 0 1px 0 #0f172a;
+    }
+
+    .pad-empty {
+      visibility: hidden;
+    }
+
+    .action-area {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .jump-btn {
+      width: 88px;
+      height: 88px;
+      border-radius: 50%;
+      background: radial-gradient(circle at 35% 35%, #f87171, #dc2626);
+      border: 4px solid #fde047;
+      color: #ffffff;
+      font-family: 'Press Start 2P', monospace;
+      font-size: 12px;
+      cursor: pointer;
+      box-shadow: 0 5px 0 #7f1d1d;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    .jump-btn:active, .jump-btn.pressed {
+      transform: translateY(3px);
+      box-shadow: 0 2px 0 #7f1d1d;
+    }
+
+    .key-hint {
+      font-size: 11px;
+      color: #94a3b8;
+      text-align: center;
+    }
+
+    @media (max-width: 480px) {
+      .dpad {
+        grid-template-columns: repeat(3, 44px);
+        grid-template-rows: repeat(3, 40px);
+      }
+      .jump-btn {
+        width: 76px;
+        height: 76px;
+        font-size: 11px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="arcade-cabinet">
+    <div class="top-bar">
+      <div class="brand-title">PONPOKO</div>
+      <div class="top-controls">
+        <button id="btnSound" class="btn-ui active" type="button">🔊 소리 켜짐</button>
+        <button id="btnPause" class="btn-ui" type="button">⏸ 일시정지</button>
+        <button id="btnRestart" class="btn-ui" type="button">↻ 다시하기</button>
+      </div>
+    </div>
+
+    <div class="screen-bezel">
+      <canvas id="gameCanvas" width="480" height="400"></canvas>
+
+      <div id="overlay" class="overlay">
+        <div class="overlay-logo">PONPOKO</div>
+        <div id="overlaySub" class="overlay-sub">1982 RETRO ARCADE</div>
+        <div id="overlayDesc" class="overlay-desc">
+          사다리를 타고 틈과 압정을 피해 모든 과일을 먹으세요!<br />
+          노란 항아리(?)에는 보너스 점수나 뱀이 숨어 있습니다.<br />
+          <strong>조작:</strong> 방향키(WASD) 이동/사다리 · <strong>Space</strong> 점프
+        </div>
+        <button id="btnStart" class="btn-start" type="button">INSERT COIN / START</button>
+      </div>
+    </div>
+
+    <div class="touch-controls">
+      <div class="dpad">
+        <div class="pad-empty"></div>
+        <button class="pad-btn" data-key="ArrowUp" type="button" aria-label="위">▲</button>
+        <div class="pad-empty"></div>
+        <button class="pad-btn" data-key="ArrowLeft" type="button" aria-label="왼쪽">◀</button>
+        <div class="pad-empty"></div>
+        <button class="pad-btn" data-key="ArrowRight" type="button" aria-label="오른쪽">▶</button>
+        <div class="pad-empty"></div>
+        <button class="pad-btn" data-key="ArrowDown" type="button" aria-label="아래">▼</button>
+        <div class="pad-empty"></div>
+      </div>
+
+      <div class="key-hint">
+        PC: 방향키 / WASD + Space<br />
+        터치: 좌측 십자키 + JUMP
+      </div>
+
+      <div class="action-area">
+        <button id="btnJump" class="jump-btn" type="button">JUMP</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    (() => {
+      const canvas = document.getElementById('gameCanvas');
+      const ctx = canvas.getContext('2d');
+      ctx.imageSmoothingEnabled = false;
+
+      const W = 480;
+      const H = 400;
+
+      // UI Elements
+      const overlay = document.getElementById('overlay');
+      const overlaySub = document.getElementById('overlaySub');
+      const overlayDesc = document.getElementById('overlayDesc');
+      const btnStart = document.getElementById('btnStart');
+      const btnSound = document.getElementById('btnSound');
+      const btnPause = document.getElementById('btnPause');
+      const btnRestart = document.getElementById('btnRestart');
+      const btnJump = document.getElementById('btnJump');
+
+      // Audio Engine (Web Audio API 8-bit chiptune synthesizer)
+      let audioCtx = null;
+      let soundEnabled = true;
+
+      function ensureAudio() {
+        if (!soundEnabled) return null;
+        if (!audioCtx) {
+          const AC = window.AudioContext || window.webkitAudioContext;
+          if (AC) audioCtx = new AC();
+        }
+        if (audioCtx && audioCtx.state === 'suspended') {
+          audioCtx.resume().catch(() => {});
+        }
+        return audioCtx;
+      }
+
+      function playTone(freq, duration, type = 'square', gainVal = 0.08, slideTo = null) {
+        if (!soundEnabled) return;
+        const ac = ensureAudio();
+        if (!ac) return;
+        const now = ac.currentTime;
+        const osc = ac.createOscillator();
+        const gain = ac.createGain();
+        osc.type = type;
+        osc.frequency.setValueAtTime(freq, now);
+        if (slideTo !== null) {
+          osc.frequency.exponentialRampToValueAtTime(Math.max(20, slideTo), now + duration);
+        }
+        gain.gain.setValueAtTime(gainVal, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + duration);
+        osc.connect(gain);
+        gain.connect(ac.destination);
+        osc.start(now);
+        osc.stop(now + duration);
+      }
+
+      function sfxJump() {
+        playTone(260, 0.16, 'square', 0.07, 560);
+      }
+
+      function sfxEat() {
+        playTone(520, 0.07, 'square', 0.08);
+        setTimeout(() => playTone(780, 0.1, 'square', 0.08), 55);
+      }
+
+      function sfxBonus() {
+        [523, 659, 784, 1046].forEach((f, i) => {
+          setTimeout(() => playTone(f, 0.09, 'triangle', 0.1), i * 60);
+        });
+      }
+
+      function sfxSnake() {
+        [300, 240, 320, 200].forEach((f, i) => {
+          setTimeout(() => playTone(f, 0.09, 'sawtooth', 0.07), i * 70);
+        });
+      }
+
+      function sfxDie() {
+        playTone(440, 0.35, 'sawtooth', 0.09, 90);
+        setTimeout(() => playTone(220, 0.35, 'square', 0.07, 65), 180);
+      }
+
+      function sfxClear() {
+        const notes = [523, 659, 784, 659, 784, 1046];
+        notes.forEach((f, i) => {
+          setTimeout(() => playTone(f, 0.13, 'square', 0.08), i * 100);
+        });
+      }
+
+      // Pixel Art Sprites (2px per pixel cell)
+      const PALETTE = {
+        '.': null,
+        'O': '#f97316', // orange fur
+        'D': '#9a3412', // dark brown
+        'W': '#ffffff', // white
+        'K': '#111827', // black eye/outline
+        'Y': '#fde047', // yellow
+        'G': '#22c55e', // green
+        'R': '#ef4444', // red
+        'P': '#f472b6', // pink
+        'C': '#22d3ee', // cyan
+        'B': '#3b82f6', // blue
+        'M': '#d97706', // amber/pot shading
+        'L': '#86efac', // light green
+      };
+
+      const SPRITES = {
+        tanuki1: [
+          '..DD..DD..',
+          '.DOOOOOOD.',
+          '.OKWKKWKO.',
+          '.DOOOOOOD.',
+          '..OWWWWO..',
+          '.DOWWWWOD.',
+          'DOOWWWWOO.',
+          '.DOOOOOOD.',
+          '..DD..DD..',
+          '..KK..KK..'
+        ],
+        tanuki2: [
+          '..DD..DD..',
+          '.DOOOOOOD.',
+          '.OKWKKWKO.',
+          '.DOOOOOOD.',
+          '..OWWWWO..',
+          '.DOWWWWOD.',
+          '.OOWWWWOOD',
+          '.DOOOOOOD.',
+          '.DD....DD.',
+          '.KK....KK.'
+        ],
+        tanukiClimb: [
+          '..DD..DD..',
+          '.DOOOOOOD.',
+          '.DOOOOOOD.',
+          '..DDDDDD..',
+          '.DOOOOOOD.',
+          'DOOOOOOOOD',
+          '.DOOOOOOD.',
+          '.DD....DD.',
+          '.KK....KK.',
+          '..........'
+        ],
+        enemyPink: [
+          '.PP....PP.',
+          'PKPK..PKPK',
+          '.PPPPPPPP.',
+          'PPPPPPPPPP',
+          '.PPWWWWPP.',
+          'PPPPPPPPPP',
+          '.PP.PP.PP.',
+          'P..P..P..P'
+        ],
+        enemyGreen: [
+          '.GG....GG.',
+          'GKGK..GKGK',
+          '.GGGGGGGG.',
+          'GGGGGGGGGG',
+          '.GGLLLLGG.',
+          'GGGGGGGGGG',
+          '.GG.GG.GG.',
+          'G..G..G..G'
+        ],
+        enemyCyan: [
+          '.CC....CC.',
+          'CKCK..CKCK',
+          '.CCCCCCCC.',
+          'CCCCCCCCCC',
+          '.CCWWWWCC.',
+          'CCCCCCCCCC',
+          '.CC.CC.CC.',
+          'C..C..C..C'
+        ],
+        snake: [
+          '......RR..',
+          '.....RKWR.',
+          '.GG..RRRR.',
+          'GYYG.GG...',
+          '.GGGGGG...',
+          '..GGGG....',
+          '.GG..GG...',
+          'GG....GG..'
+        ],
+        banana: [
+          '......YY..',
+          '.....YYY..',
+          '....YYY...',
+          '...YYYY...',
+          '..YYYY.YY.',
+          '.YYYY.YYY.',
+          'YYY..YYY..',
+          '.YY.YYY...'
+        ],
+        cherry: [
+          '.....GG...',
+          '....G..G..',
+          '...G....G.',
+          '..RR....RR',
+          '.RWRR..RWR',
+          '.RRRR..RRR',
+          '..RR....RR',
+          '..........'
+        ],
+        watermelon: [
+          '...GGGG...',
+          '..GLLLLG..',
+          '.GRRRRRRG.',
+          '.GRKRRKRG.',
+          '.GRRRRRRG.',
+          '..GRRRRG..',
+          '...GGGG...',
+          '..........'
+        ],
+        pineapple: [
+          '...G..G...',
+          '..GGGGGG..',
+          '..YYYYYY..',
+          '.YYMYYMYY.',
+          '.YYYYYYYY.',
+          '.YYMYYMYY.',
+          '..YYYYYY..',
+          '...MMMM...'
+        ],
+        pot: [
+          '..MMMMMM..',
+          '...YYYY...',
+          '..YYYYYY..',
+          '.YYYKKYYY.',
+          '.YYYMYYYY.',
+          '.YYYYYYYY.',
+          '..YYYYYY..',
+          '...MMMM...'
+        ],
+        tack: [
+          '....WW....',
+          '....WW....',
+          '....WW....',
+          '....WW....',
+          '.RRRRRRRR.',
+          'RRRRRRRRRR'
+        ]
+      };
+
+      function drawSprite(key, x, y, scale = 2, flipX = false) {
+        const grid = SPRITES[key];
+        if (!grid) return;
+        const rows = grid.length;
+        const cols = grid[0].length;
+        for (let r = 0; r < rows; r++) {
+          for (let c = 0; c < cols; c++) {
+            const ch = grid[r][flipX ? cols - 1 - c : c];
+            const color = PALETTE[ch];
+            if (color) {
+              ctx.fillStyle = color;
+              ctx.fillRect(Math.round(x + c * scale), Math.round(y + r * scale), scale, scale);
+            }
+          }
+        }
+      }
+
+      // Stage definitions (5 platforms: y = 120, 174, 228, 282, 336; left wall x=48, right wall x=416)
+      const LEFT_WALL = 52;
+      const RIGHT_WALL = 412;
+      const FLOOR_YS = [122, 176, 230, 284, 338];
+
+      const STAGES = [
+        {
+          fruitType: 'banana',
+          platforms: [
+            // Floor 0 (top)
+            [[52, 128], [156, 260], [292, 412]],
+            // Floor 1
+            [[52, 194], [220, 240], [272, 412]],
+            // Floor 2
+            [[52, 146], [178, 278], [312, 412]],
+            // Floor 3
+            [[52, 210], [250, 412]],
+            // Floor 4 (bottom - solid)
+            [[52, 412]]
+          ],
+          ladders: [
+            { x: 90, topY: 122, bottomY: 176 },
+            { x: 356, topY: 122, bottomY: 176 },
+            { x: 162, topY: 176, bottomY: 230 },
+            { x: 382, topY: 176, bottomY: 230 },
+            { x: 90, topY: 230, bottomY: 284 },
+            { x: 356, topY: 230, bottomY: 284 },
+            { x: 174, topY: 284, bottomY: 338 },
+            { x: 284, topY: 284, bottomY: 338 }
+          ],
+          fruits: [
+            { x: 186, y: 102 }, { x: 274, y: 156 }, { x: 194, y: 210 }, { x: 256, y: 210 },
+            { x: 126, y: 264 }, { x: 374, y: 264 }, { x: 74, y: 318 }, { x: 344, y: 318 }
+          ],
+          pots: [
+            { x: 318, y: 156, snake: false },
+            { x: 118, y: 210, snake: true },
+            { x: 316, y: 264, snake: false }
+          ],
+          tacks: [
+            { x: 102, y: 272 }, { x: 152, y: 272 }, { x: 298, y: 272 }, { x: 342, y: 272 },
+            { x: 112, y: 326 }, { x: 152, y: 326 }, { x: 210, y: 326 }, { x: 262, y: 326 }
+          ],
+          enemies: [
+            { floor: 0, x: 168, vx: 1.05, sprite: 'enemyPink' },
+            { floor: 1, x: 136, vx: -1.2, sprite: 'enemyGreen' },
+            { floor: 4, x: 130, vx: 1.3, sprite: 'enemyCyan' }
+          ]
+        },
+        {
+          fruitType: 'watermelon',
+          platforms: [
+            [[52, 168], [202, 310], [344, 412]],
+            [[52, 118], [150, 260], [292, 412]],
+            [[52, 200], [234, 336], [368, 412]],
+            [[52, 140], [174, 290], [322, 412]],
+            [[52, 412]]
+          ],
+          ladders: [
+            { x: 130, topY: 122, bottomY: 176 },
+            { x: 366, topY: 122, bottomY: 176 },
+            { x: 86, topY: 176, bottomY: 230 },
+            { x: 238, topY: 176, bottomY: 230 },
+            { x: 184, topY: 230, bottomY: 284 },
+            { x: 326, topY: 230, bottomY: 284 },
+            { x: 110, topY: 284, bottomY: 338 },
+            { x: 266, topY: 284, bottomY: 338 }
+          ],
+          fruits: [
+            { x: 76, y: 102 }, { x: 244, y: 102 }, { x: 382, y: 102 },
+            { x: 188, y: 156 }, { x: 330, y: 156 }, { x: 280, y: 210 },
+            { x: 84, y: 264 }, { x: 366, y: 318 }
+          ],
+          pots: [
+            { x: 216, y: 156, snake: true },
+            { x: 126, y: 210, snake: false },
+            { x: 224, y: 264, snake: true }
+          ],
+          tacks: [
+            { x: 214, y: 110 }, { x: 318, y: 164 }, { x: 150, y: 218 },
+            { x: 266, y: 272 }, { x: 162, y: 326 }, { x: 220, y: 326 }, { x: 318, y: 326 }
+          ],
+          enemies: [
+            { floor: 0, x: 240, vx: -1.25, sprite: 'enemyPink' },
+            { floor: 1, x: 90, vx: 1.35, sprite: 'enemyGreen' },
+            { floor: 2, x: 300, vx: -1.35, sprite: 'enemyCyan' },
+            { floor: 4, x: 340, vx: -1.4, sprite: 'enemyPink' }
+          ]
+        },
+        {
+          fruitType: 'pineapple',
+          platforms: [
+            [[52, 136], [170, 290], [324, 412]],
+            [[52, 198], [232, 412]],
+            [[52, 126], [160, 268], [302, 412]],
+            [[52, 174], [208, 326], [358, 412]],
+            [[52, 412]]
+          ],
+          ladders: [
+            { x: 106, topY: 122, bottomY: 176 },
+            { x: 256, topY: 122, bottomY: 176 },
+            { x: 176, topY: 176, bottomY: 230 },
+            { x: 360, topY: 176, bottomY: 230 },
+            { x: 96, topY: 230, bottomY: 284 },
+            { x: 246, topY: 230, bottomY: 284 },
+            { x: 152, topY: 284, bottomY: 338 },
+            { x: 306, topY: 284, bottomY: 338 }
+          ],
+          fruits: [
+            { x: 76, y: 102 }, { x: 224, y: 102 }, { x: 368, y: 102 },
+            { x: 134, y: 156 }, { x: 312, y: 156 }, { x: 204, y: 210 },
+            { x: 382, y: 264 }, { x: 84, y: 318 }
+          ],
+          pots: [
+            { x: 274, y: 102, snake: false },
+            { x: 112, y: 210, snake: true },
+            { x: 282, y: 264, snake: true }
+          ],
+          tacks: [
+            { x: 196, y: 110 }, { x: 294, y: 164 }, { x: 248, y: 218 },
+            { x: 132, y: 272 }, { x: 338, y: 272 }, { x: 118, y: 326 },
+            { x: 218, y: 326 }, { x: 356, y: 326 }
+          ],
+          enemies: [
+            { floor: 0, x: 180, vx: 1.4, sprite: 'enemyCyan' },
+            { floor: 1, x: 330, vx: -1.45, sprite: 'enemyPink' },
+            { floor: 2, x: 170, vx: 1.5, sprite: 'enemyGreen' },
+            { floor: 3, x: 260, vx: -1.45, sprite: 'enemyPink' },
+            { floor: 4, x: 100, vx: 1.55, sprite: 'enemyCyan' }
+          ]
+        }
+      ];
+
+      // Game State
+      let score = 0;
+      let topScore = 107710;
+      try {
+        const saved = localStorage.getItem('ponpoko_top_score');
+        if (saved && !isNaN(Number(saved))) {
+          topScore = Math.max(topScore, Number(saved));
+        }
+      } catch (e) {}
+
+      let lives = 4;
+      let stageNum = 1;
+      let gameState = 'title'; // 'title', 'playing', 'paused', 'dying', 'clear', 'gameover'
+      let stateTimer = 0;
+      let timeRemaining = 100; // percentage
+      let frameCount = 0;
+
+      // Active entities
+      let currentStageData = null;
+      let fruits = [];
+      let pots = [];
+      let tacks = [];
+      let enemies = [];
+      let popups = [];
+
+      const player = {
+        x: 240,
+        y: 264, // standing on floor 3
+        vx: 0,
+        vy: 0,
+        w: 18,
+        h: 18,
+        facingRight: true,
+        onGround: true,
+        climbing: false,
+        activeLadder: null,
+        startY: 264,
+        walkFrame: 0
+      };
+
+      // Input state
+      const keys = {};
+
+      function loadStage(num) {
+        const idx = (num - 1) % STAGES.length;
+        const speedMult = 1 + Math.floor((num - 1) / STAGES.length) * 0.18;
+        currentStageData = STAGES[idx];
+
+        fruits = currentStageData.fruits.map(f => ({
+          x: f.x,
+          y: f.y,
+          collected: false
+        }));
+
+        pots = currentStageData.pots.map(p => ({
+          x: p.x,
+          y: p.y,
+          snake: p.snake,
+          opened: false
+        }));
+
+        tacks = currentStageData.tacks.map(t => ({ x: t.x, y: t.y }));
+
+        enemies = currentStageData.enemies.map(e => ({
+          x: e.x,
+          y: FLOOR_YS[e.floor] - 16,
+          vx: e.vx * speedMult,
+          sprite: e.sprite,
+          isSnake: false
+        }));
+
+        popups = [];
+        timeRemaining = 100;
+        resetPlayerPosition();
+      }
+
+      function resetPlayerPosition() {
+        player.x = 260;
+        player.y = FLOOR_YS[3] - player.h; // Floor 3
+        player.vx = 0;
+        player.vy = 0;
+        player.onGround = true;
+        player.climbing = false;
+        player.activeLadder = null;
+        player.startY = player.y;
+        player.facingRight = true;
+      }
+
+      function startGame() {
+        ensureAudio();
+        score = 0;
+        lives = 4;
+        stageNum = 1;
+        loadStage(stageNum);
+        gameState = 'playing';
+        overlay.classList.add('hidden');
+        btnPause.textContent = '⏸ 일시정지';
+      }
+
+      function addScore(pts) {
+        score += pts;
+        if (score > topScore) {
+          topScore = score;
+          try {
+            localStorage.setItem('ponpoko_top_score', String(topScore));
+          } catch (e) {}
+        }
+      }
+
+      function isSupported(x, yFoot) {
+        for (let f = 0; f < FLOOR_YS.length; f++) {
+          if (Math.abs(yFoot - FLOOR_YS[f]) <= 4) {
+            const segs = currentStageData.platforms[f];
+            for (const [x1, x2] of segs) {
+              if (x + 12 >= x1 && x + 6 <= x2) {
+                return FLOOR_YS[f];
+              }
+            }
+          }
+        }
+        return null;
+      }
+
+      function findNearbyLadder(x, yFoot) {
+        const centerX = x + player.w / 2;
+        for (const lad of currentStageData.ladders) {
+          if (Math.abs(centerX - (lad.x + 8)) <= 10) {
+            if (yFoot >= lad.topY - 4 && yFoot <= lad.bottomY + 4) {
+              return lad;
+            }
+          }
+        }
+        return null;
+      }
+
+      function triggerDeath() {
+        if (gameState !== 'playing') return;
+        sfxDie();
+        gameState = 'dying';
+        stateTimer = 75;
+      }
+
+      function update() {
+        frameCount++;
+
+        if (gameState === 'dying') {
+          stateTimer--;
+          if (stateTimer <= 0) {
+            lives--;
+            if (lives <= 0) {
+              gameState = 'gameover';
+              overlaySub.textContent = 'GAME OVER';
+              overlayDesc.innerHTML = `최종 점수: <strong style="color:#fde047">${score.toLocaleString()}</strong>점<br>최고 기록: <strong style="color:#22d3ee">${topScore.toLocaleString()}</strong>점`;
+              btnStart.textContent = 'TRY AGAIN';
+              overlay.classList.remove('hidden');
+            } else {
+              // Remove spawned snakes on respawn
+              enemies = enemies.filter(e => !e.isSnake);
+              resetPlayerPosition();
+              timeRemaining = Math.max(timeRemaining, 50);
+              gameState = 'playing';
+            }
+          }
+          return;
+        }
+
+        if (gameState === 'clear') {
+          stateTimer--;
+          if (stateTimer <= 0) {
+            stageNum++;
+            loadStage(stageNum);
+            gameState = 'playing';
+          }
+          return;
+        }
+
+        if (gameState !== 'playing') return;
+
+        // Timer drain
+        timeRemaining -= 0.025;
+        if (timeRemaining <= 0) {
+          timeRemaining = 0;
+          triggerDeath();
+          return;
+        }
+
+        const left = keys['ArrowLeft'] || keys['KeyA'];
+        const right = keys['ArrowRight'] || keys['KeyD'];
+        const up = keys['ArrowUp'] || keys['KeyW'];
+        const down = keys['ArrowDown'] || keys['KeyS'];
+        const jump = keys['Space'] || keys['KeyZ'] || keys['KeyK'];
+
+        // Ladder logic
+        if (player.climbing) {
+          const lad = player.activeLadder;
+          player.x = lad.x - 1;
+          player.vx = 0;
+          player.vy = 0;
+          if (up) {
+            player.y -= 2;
+            player.walkFrame++;
+            if (player.y + player.h <= lad.topY) {
+              player.y = lad.topY - player.h;
+              player.climbing = false;
+              player.onGround = true;
+              player.startY = player.y;
+            }
+          } else if (down) {
+            player.y += 2;
+            player.walkFrame++;
+            if (player.y + player.h >= lad.bottomY) {
+              player.y = lad.bottomY - player.h;
+              player.climbing = false;
+              player.onGround = true;
+              player.startY = player.y;
+            }
+          }
+        } else {
+          // Horizontal movement
+          const speed = 2.1;
+          if (left) {
+            player.vx = -speed;
+            player.facingRight = false;
+            player.walkFrame++;
+          } else if (right) {
+            player.vx = speed;
+            player.facingRight = true;
+            player.walkFrame++;
+          } else {
+            player.vx = 0;
+          }
+
+          // Check ladder grab
+          if (player.onGround && (up || down)) {
+            const lad = findNearbyLadder(player.x, player.y + player.h);
+            if (lad) {
+              const yFoot = player.y + player.h;
+              if ((up && yFoot > lad.topY + 4) || (down && yFoot < lad.bottomY - 4)) {
+                player.climbing = true;
+                player.activeLadder = lad;
+                player.vx = 0;
+                player.vy = 0;
+              }
+            }
+          }
+
+          if (!player.climbing) {
+            // Jump
+            if (jump && player.onGround) {
+              player.vy = -5.4;
+              player.onGround = false;
+              player.startY = player.y;
+              sfxJump();
+            }
+
+            // Gravity
+            player.vy += 0.32;
+            if (player.vy > 6) player.vy = 6;
+
+            player.x += player.vx;
+            if (player.x < LEFT_WALL) player.x = LEFT_WALL;
+            if (player.x + player.w > RIGHT_WALL) player.x = RIGHT_WALL - player.w;
+
+            const prevFoot = player.y + player.h;
+            player.y += player.vy;
+            const newFoot = player.y + player.h;
+
+            // Check landing on platform
+            if (player.vy >= 0) {
+              const supY = isSupported(player.x, newFoot);
+              if (supY !== null && prevFoot <= supY + 6) {
+                // Falling from higher floor is fatal (Ponpoko rule!)
+                if (player.y - player.startY > 24) {
+                  player.y = supY - player.h;
+                  triggerDeath();
+                  return;
+                }
+                player.y = supY - player.h;
+                player.vy = 0;
+                player.onGround = true;
+                player.startY = player.y;
+              } else {
+                player.onGround = false;
+              }
+            }
+
+            // Fell off bottom
+            if (player.y > H) {
+              triggerDeath();
+              return;
+            }
+          }
+        }
+
+        // Update Enemies
+        for (const e of enemies) {
+          e.x += e.vx;
+          if (e.x <= LEFT_WALL) {
+            e.x = LEFT_WALL;
+            e.vx = Math.abs(e.vx);
+          } else if (e.x + 18 >= RIGHT_WALL) {
+            e.x = RIGHT_WALL - 18;
+            e.vx = -Math.abs(e.vx);
+          }
+
+          // Collision with player (forgiving hitbox)
+          if (
+            player.x + 4 < e.x + 14 &&
+            player.x + player.w - 4 > e.x + 4 &&
+            player.y + 4 < e.y + 14 &&
+            player.y + player.h - 2 > e.y + 3
+          ) {
+            triggerDeath();
+            return;
+          }
+        }
+
+        // Check Tacks
+        for (const t of tacks) {
+          if (
+            player.x + 5 < t.x + 14 &&
+            player.x + player.w - 5 > t.x + 4 &&
+            player.y + 6 < t.y + 12 &&
+            player.y + player.h > t.y + 2
+          ) {
+            triggerDeath();
+            return;
+          }
+        }
+
+        // Check Fruits
+        let remaining = 0;
+        for (const f of fruits) {
+          if (!f.collected) {
+            if (
+              player.x + 2 < f.x + 16 &&
+              player.x + player.w - 2 > f.x &&
+              player.y + 2 < f.y + 16 &&
+              player.y + player.h - 2 > f.y
+            ) {
+              f.collected = true;
+              sfxEat();
+              addScore(300);
+              popups.push({ x: f.x, y: f.y, text: '300', color: '#fde047', timer: 40 });
+            } else {
+              remaining++;
+            }
+          }
+        }
+
+        // Check Mystery Pots
+        for (const p of pots) {
+          if (!p.opened) {
+            if (
+              player.x + 2 < p.x + 16 &&
+              player.x + player.w - 2 > p.x &&
+              player.y + 2 < p.y + 16 &&
+              player.y + player.h - 2 > p.y
+            ) {
+              p.opened = true;
+              if (p.snake) {
+                sfxSnake();
+                enemies.push({
+                  x: p.x + (p.x < 240 ? 28 : -28),
+                  y: p.y,
+                  vx: p.x < 240 ? 1.85 : -1.85,
+                  sprite: 'snake',
+                  isSnake: true
+                });
+                popups.push({ x: p.x, y: p.y - 6, text: 'SNAKE!', color: '#ef4444', timer: 55 });
+              } else {
+                sfxBonus();
+                const bonus = 1000;
+                addScore(bonus);
+                popups.push({ x: p.x, y: p.y - 6, text: '+1000', color: '#22d3ee', timer: 55 });
+              }
+            }
+          }
+        }
+
+        // Update popups
+        popups = popups.filter(pp => {
+          pp.y -= 0.4;
+          pp.timer--;
+          return pp.timer > 0;
+        });
+
+        // Stage Clear check
+        if (remaining === 0) {
+          sfxClear();
+          const timeBonus = Math.round(timeRemaining) * 20;
+          addScore(timeBonus);
+          gameState = 'clear';
+          stateTimer = 100;
+        }
+      }
+
+      function drawPlatformSegment(x1, x2, y) {
+        // Cyan dotted-brick pattern like original Ponpoko
+        ctx.fillStyle = '#22d3ee';
+        for (let x = x1; x < x2 - 2; x += 6) {
+          ctx.fillRect(x, y, 4, 4);
+          ctx.fillStyle = '#0891b2';
+          ctx.fillRect(x + 1, y + 4, 2, 2);
+          ctx.fillStyle = '#22d3ee';
+        }
+      }
+
+      function drawLadder(lad) {
+        ctx.fillStyle = '#0ea5e9';
+        ctx.fillRect(lad.x, lad.topY, 3, lad.bottomY - lad.topY);
+        ctx.fillRect(lad.x + 13, lad.topY, 3, lad.bottomY - lad.topY);
+        ctx.fillStyle = '#22d3ee';
+        for (let y = lad.topY + 4; y < lad.bottomY; y += 7) {
+          ctx.fillRect(lad.x + 3, y, 10, 2);
+        }
+      }
+
+      function drawHUD() {
+        ctx.font = 'bold 13px "Press Start 2P", monospace';
+        ctx.textAlign = 'left';
+
+        // 1 UP
+        ctx.fillStyle = '#ffffff';
+        ctx.fillText('1 UP', 58, 20);
+        ctx.fillStyle = '#22d3ee';
+        ctx.fillText(String(score).padStart(6, '0'), 44, 36);
+
+        // TOP SCORE
+        ctx.fillStyle = '#ffffff';
+        ctx.fillText('TOP SCORE', 178, 20);
+        ctx.fillStyle = '#22d3ee';
+        ctx.fillText(String(topScore).padStart(6, '0'), 194, 36);
+
+        // Stage number + Blue Timer Gauge Bar
+        ctx.fillStyle = '#3b82f6';
+        ctx.fillText(String(stageNum), 76, 54);
+        ctx.fillStyle = '#1e3a8a';
+        ctx.fillRect(96, 42, 224, 12);
+        ctx.fillStyle = timeRemaining < 25 && frameCount % 16 < 8 ? '#ef4444' : '#2563eb';
+        ctx.fillRect(96, 42, Math.max(0, (224 * timeRemaining) / 100), 12);
+
+        // Top fruit shelf icons (visual homage to original Ponpoko)
+        const shelfFruits = ['cherry', 'watermelon', 'pineapple', 'banana', 'cherry', 'watermelon', 'pineapple', 'banana'];
+        shelfFruits.forEach((fKey, i) => {
+          drawSprite(fKey, 130 + i * 32, 60, 2);
+        });
+
+        // Top shelf line + right cyan wall
+        ctx.fillStyle = '#22d3ee';
+        ctx.fillRect(52, 78, 366, 6);
+        ctx.fillRect(412, 40, 8, 304);
+        // Bottom solid floor bar
+        ctx.fillRect(52, 344, 368, 8);
+
+        // Lives (bottom left)
+        for (let i = 0; i < Math.max(0, lives - 1); i++) {
+          drawSprite('tanuki1', 56 + i * 24, 362, 2);
+        }
+
+        // Stage / Credit (bottom right)
+        ctx.font = 'bold 12px "Press Start 2P", monospace';
+        ctx.fillStyle = '#ef4444';
+        ctx.fillText('STAGE', 320, 382);
+        ctx.fillStyle = '#22d3ee';
+        ctx.fillText(String(stageNum).padStart(2, '0'), 394, 382);
+      }
+
+      function render() {
+        ctx.fillStyle = '#000000';
+        ctx.fillRect(0, 0, W, H);
+
+        drawHUD();
+
+        if (!currentStageData) return;
+
+        // Platforms
+        for (let f = 0; f < FLOOR_YS.length; f++) {
+          for (const [x1, x2] of currentStageData.platforms[f]) {
+            drawPlatformSegment(x1, x2, FLOOR_YS[f]);
+          }
+        }
+
+        // Ladders
+        for (const lad of currentStageData.ladders) {
+          drawLadder(lad);
+        }
+
+        // Tacks
+        for (const t of tacks) {
+          drawSprite('tack', t.x, t.y, 2);
+        }
+
+        // Pots
+        for (const p of pots) {
+          if (!p.opened) {
+            drawSprite('pot', p.x, p.y, 2);
+          }
+        }
+
+        // Fruits
+        for (const f of fruits) {
+          if (!f.collected) {
+            drawSprite(currentStageData.fruitType, f.x, f.y, 2);
+          }
+        }
+
+        // Enemies
+        for (const e of enemies) {
+          drawSprite(e.sprite, e.x, e.y, 2, e.vx < 0);
+        }
+
+        // Player
+        if (gameState !== 'dying' || frameCount % 8 < 4) {
+          let spr = 'tanuki1';
+          if (player.climbing) {
+            spr = 'tanukiClimb';
+          } else if (Math.abs(player.vx) > 0 && Math.floor(player.walkFrame / 6) % 2 === 1) {
+            spr = 'tanuki2';
+          }
+          drawSprite(spr, player.x, player.y, 2, !player.facingRight);
+        }
+
+        // Score Popups
+        ctx.font = 'bold 10px "Press Start 2P", monospace';
+        for (const pp of popups) {
+          ctx.fillStyle = pp.color;
+          ctx.fillText(pp.text, pp.x, pp.y);
+        }
+
+        // Stage Clear Banner
+        if (gameState === 'clear') {
+          ctx.fillStyle = 'rgba(0,0,0,0.7)';
+          ctx.fillRect(100, 170, 280, 62);
+          ctx.strokeStyle = '#fde047';
+          ctx.lineWidth = 3;
+          ctx.strokeRect(100, 170, 280, 62);
+          ctx.font = 'bold 16px "Press Start 2P", monospace';
+          ctx.fillStyle = '#fde047';
+          ctx.textAlign = 'center';
+          ctx.fillText('STAGE CLEAR!', W / 2, 198);
+          ctx.font = 'bold 10px "Press Start 2P", monospace';
+          ctx.fillStyle = '#22d3ee';
+          ctx.fillText('TIME BONUS ADDED', W / 2, 220);
+        }
+      }
+
+      function loop() {
+        update();
+        render();
+        requestAnimationFrame(loop);
+      }
+
+      // Keyboard Events
+      window.addEventListener('keydown', (e) => {
+        if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space'].includes(e.code)) {
+          e.preventDefault();
+        }
+        keys[e.code] = true;
+        if (e.code === 'Enter' && (gameState === 'title' || gameState === 'gameover')) {
+          startGame();
+        }
+      });
+
+      window.addEventListener('keyup', (e) => {
+        keys[e.code] = false;
+      });
+
+      // Touch / Mouse Controls for D-Pad and Jump
+      document.querySelectorAll('.pad-btn').forEach((btn) => {
+        const key = btn.dataset.key;
+        const press = (ev) => {
+          ev.preventDefault();
+          ensureAudio();
+          keys[key] = true;
+          btn.classList.add('pressed');
+        };
+        const release = (ev) => {
+          ev.preventDefault();
+          keys[key] = false;
+          btn.classList.remove('pressed');
+        };
+        btn.addEventListener('pointerdown', press);
+        btn.addEventListener('pointerup', release);
+        btn.addEventListener('pointerleave', release);
+        btn.addEventListener('pointercancel', release);
+      });
+
+      btnJump.addEventListener('pointerdown', (e) => {
+        e.preventDefault();
+        ensureAudio();
+        keys['Space'] = true;
+        btnJump.classList.add('pressed');
+      });
+      const releaseJump = (e) => {
+        e.preventDefault();
+        keys['Space'] = false;
+        btnJump.classList.remove('pressed');
+      };
+      btnJump.addEventListener('pointerup', releaseJump);
+      btnJump.addEventListener('pointerleave', releaseJump);
+      btnJump.addEventListener('pointercancel', releaseJump);
+
+      // UI Buttons
+      btnStart.addEventListener('click', startGame);
+
+      btnSound.addEventListener('click', () => {
+        soundEnabled = !soundEnabled;
+        btnSound.textContent = soundEnabled ? '🔊 소리 켜짐' : '🔇 음소거';
+        btnSound.classList.toggle('active', soundEnabled);
+        if (soundEnabled) ensureAudio();
+      });
+
+      btnPause.addEventListener('click', () => {
+        if (gameState === 'playing') {
+          gameState = 'paused';
+          btnPause.textContent = '▶ 계속하기';
+          btnPause.classList.add('active');
+        } else if (gameState === 'paused') {
+          gameState = 'playing';
+          btnPause.textContent = '⏸ 일시정지';
+          btnPause.classList.remove('active');
+        }
+      });
+
+      btnRestart.addEventListener('click', () => {
+        startGame();
+      });
+
+      window.onload = () => {
+        loadStage(1);
+        render();
+        requestAnimationFrame(loop);
+      };
+    })();
+  </script>
+</body>
+</html>
